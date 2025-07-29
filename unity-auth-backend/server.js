@@ -138,27 +138,59 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 // Get User Profile by Username (Public)
 app.get('/api/profile/:username', async (req, res) => {
     try {
+        console.log('Searching for user:', req.params.username);
         const user = await User.findOne({ username: req.params.username });
+        console.log('Found user:', user);
+        
         if (!user) {
-            return res.status(404).json({ success: false, message: "User not found" });
+            return res.status(404).json({ 
+                success: false, 
+                message: "User not found",
+                searchedUsername: req.params.username
+            });
         }
 
+        // Convert user object to avoid any MongoDB specific issues
+        const userProfile = {
+            username: user.username,
+            email: user.email,
+            isLoggedIn: user.isLoggedIn
+        };
+
+        console.log('Sending profile:', userProfile);
+        
         res.json({
             success: true,
-            profile: {
-                username: user.username,
-                email: user.email,
-                isLoggedIn: user.isLoggedIn
-            }
+            profile: userProfile
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Error fetching profile", error: error.message });
+        console.error('Error in profile endpoint:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Error fetching profile", 
+            error: error.message,
+            searchedUsername: req.params.username
+        });
     }
 });
 
 // Health Check API
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
+});
+
+// Debug endpoint to check users (temporary)
+app.get('/api/debug/users', async (req, res) => {
+    try {
+        const users = await User.find({}, 'username email isLoggedIn');
+        res.json({
+            success: true,
+            count: users.length,
+            users: users.map(u => ({ username: u.username, email: u.email, isLoggedIn: u.isLoggedIn }))
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error fetching users", error: error.message });
+    }
 });
 
 // Start server
